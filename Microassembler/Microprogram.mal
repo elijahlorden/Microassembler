@@ -1,0 +1,61 @@
+﻿
+config {
+	ControlWordWidth 24 #Length of control word
+	BankMask 0 1 #Portion of the control word reserved for the bank selector
+	MicroprogramLength 4096 #Maximum number of microinstructions
+	OpWidth 8 #Width of opcode
+}
+
+#micromachine actions
+const mi_action_default				0
+const mi_action_next				1
+const mi_action_execute				2
+const mi_action_branch				3
+const mi_action_call				4
+const mi_action_return				5
+const mi_action_halt				6
+const mi_action_reset				7
+
+#branch types
+const branch_unconditional			0
+const branch_zero					1
+const branch_less_than_zero			2
+const branch_greater_than_zero		3
+const branch_greater_than_or_zero	4
+const branch_less_than_or_zero		5
+const branch_carry					6
+const branch_overflow				7
+
+
+#bank 0
+control mi_action					0 4:2 	#define a control called 'mi_action' on bank 0 at 4:2
+control mi_branchtype				0 7:5
+control mi_branchtype_invert		0 8 	#define a control called 'mi_branchtype_invert' on bank 0 at 8
+control mi_jumpaddr					0 23:12
+
+
+
+sequence TestSequence {
+	::label1:: #set a label on the next microinstruction
+	assert {
+		mi_action: 1 #set a control signal to a literal number
+	}
+	assert {
+		mi_action: mi_action_branch, #set a control signal to a constant
+		mi_branchtype: branch_zero,
+		mi_jumpaddr: sequence2, #set a control signal to the address of another sequence
+	}
+	testmacro(param1, label1) #Reference a macro (expanded in pre-link stage)
+	assert {
+		mi_action: param1, #set a control signal to a parameter
+		mi_jumpaddr: label1, #set a control signal to the address of a label
+	}
+}
+
+sequence sequence2 {
+	
+}
+
+macro testmacro(param1, param2) {
+	
+}
