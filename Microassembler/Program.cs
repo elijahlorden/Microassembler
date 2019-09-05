@@ -16,9 +16,13 @@ namespace Microassembler
             reader.Dispose();
             MicroprogramParser parser = new MicroprogramParser();
             Microprogram microprogram = parser.ParseProgram(file);
+            MicroprogramExpander expander = new MicroprogramExpander();
+            expander.ExpandMicroprogram(microprogram);
+            MicroprogramLinker linker = new MicroprogramLinker();
+            List<Sequence> placedSequences = linker.PlaceMicroprogram(microprogram);
+            linker.ResolveSymbols(microprogram, placedSequences);
+
             Console.WriteLine();
-
-
         }
     }
 }

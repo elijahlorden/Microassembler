@@ -11,6 +11,13 @@ namespace Microassembler
 
         public static String ToListString(this Array array) => string.Join(",", (Object[])array);
 
+        public static void ForEach<T>(this IEnumerable<T> enumeration, Action<T> action)
+        {
+            foreach (T item in enumeration)
+            {
+                action(item);
+            }
+        }
 
     }
 }

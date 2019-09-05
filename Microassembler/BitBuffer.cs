@@ -123,6 +123,16 @@ namespace Microassembler
             this.Lsb = Lsb;
         }
 
+        public Boolean OverlapsWith(BitMask other)
+        {
+            int selfUpper = Math.Max(Msb, Lsb);
+            int selfLower = Math.Min(Msb, Lsb);
+            int otherUpper = Math.Max(other.Msb, other.Lsb);
+            int otherLower = Math.Min(other.Msb, other.Lsb);
+            if ((selfUpper > otherUpper && selfLower > otherUpper) || (selfUpper < otherLower && selfLower < otherLower)) return false;
+            return true;
+        }
+
         public override string ToString()
         {
             return (Msb == Lsb) ? Msb.ToString() :  $"{Msb}:{Lsb}";

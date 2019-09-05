@@ -36,6 +36,9 @@ namespace Microassembler
                         case "sequence":
                             if (!ProcessSequence()) return null;
                             break;
+                        case "macro":
+                            if (!ProcessMacro()) return null;
+                            break;
                         default:
                             throw new MicroassemblerParseException(token, "Keyword expected");
                     }
@@ -58,9 +61,19 @@ namespace Microassembler
             return true;
         }
 
+        public Boolean ProcessMacro() //Process a macro
+        {
+            String symbol = GetWordToken();
+            Sequence sequence = ParseSequence(true);
+            CheckSymbolWarning(symbol, Enumerator.Last.Line);
+            Microprogram[symbol] = sequence;
+            Console.WriteLine($"Processed macro '{symbol}'");
+            return true;
+        }
+
         public Sequence ParseSequence(Boolean isMacro) // Parses a sequence and return an object representation (used for both normal sequences and macros)
         {
-            Sequence sequence = new Sequence();
+            Sequence sequence = new Sequence() { IsMacro = isMacro };
             if (Enumerator.HasToken() && Enumerator.Current.TokenType == TokenType.ParenList)
             {
                 if (!isMacro) throw new MicroassemblerParseException(Enumerator.Last, "Only macros can define a parameter list");
@@ -76,17 +89,22 @@ namespace Microassembler
             String word = "";
             do
             {
+                if (Enumerator.HasToken() && Enumerator.Current.TokenType == TokenType.CloseBlock)
+                {
+                    Enumerator.Advance();
+                    break;
+                }
                 word = GetWordToken();
                 if (word.StartsWith("::") && word.EndsWith("::"))
                 {
                     String label = word.Substring(2, word.Length - 4);
-                    sequence[label] = new SequenceLabel { PostExpansionAddress = sequence.Steps.Count };
+                    sequence[label] = new SequenceLabel { LocalAddress = sequence.Steps.Count };
                 }
                 else if (Enumerator.HasToken() && Enumerator.Current.TokenType == TokenType.ParenList)
                 {
                     List<Object> arguments = (List<Object>)Enumerator.Current.Value;
                     Enumerator.Advance();
-                    SequenceMacroReference step = new SequenceMacroReference() { Arguments = arguments, Symbol = word };
+                    SequenceMacroReference step = new SequenceMacroReference() { Arguments = arguments, Symbol = word, Line = Enumerator.Last.Line };
                     sequence.Steps.Add(step);
                 }
                 else if (word.ToLower().Equals("assert"))
@@ -96,28 +114,53 @@ namespace Microassembler
                 }
                 else
                 {
-                    throw new MicroassemblerParseException(Enumerator.Last, "Unexpected token");
+                    throw new MicroassemblerParseException(Enumerator.Last);
                 }
             }
-            while (!word.Equals("}"));
+            while (true);
 
             return sequence;
         }
 
-        public SequenceAssertion ParseSequenceAssertion() //Parses an assertion statement 
+        public SequenceAssertion ParseSequenceAssertion() //Parses an assertion statement
         {
-            SequenceAssertion assertion = new SequenceAssertion(Microprogram.ControlWordWidth);
+            SequenceAssertion assertion = new SequenceAssertion();
             VerifySyntaxToken(TokenType.OpenBlock, "{");
-            String word;
-            do
+            int startLine = Enumerator.Last.Line;
+            assertion.Line = startLine;
+            while (true)
             {
-                word = GetWordToken();
-
-
-
+                if (!Enumerator.HasToken()) throw new MicroassemblerParseException($"Unfinished assertion statement on line {startLine}");
+                Token token = Enumerator.Current;
+                Enumerator.Advance();
+                if (token.TokenType == TokenType.CloseBlock)
+                {
+                    break;
+                }
+                else if (token.TokenType == TokenType.Pair)
+                {
+                    Object labelName = (token.Value as Object[])[0];
+                    Object labelValue = (token.Value as Object[])[1];
+                    if (!(labelName is String)) throw new MicroassemblerParseException($"Invalid assertion key on line {token.Line}");
+                    if (!Microprogram.ControlWordLabels.ContainsKey(labelName.ToString())) throw new MicroassemblerParseException($"Nonexistant control word label on line {token.Line}");
+                    assertion.AddAssertion(Microprogram.ControlWordLabels[labelName.ToString()], labelValue);
+                    if (Enumerator.HasNext() && Enumerator.Next.TokenType == TokenType.Pair) VerifySyntaxToken(TokenType.ListDelimeter, ",");
+                    if (Enumerator.HasNext() && Enumerator.Next.TokenType == TokenType.CloseBlock) DiscardOptionalToken(TokenType.ListDelimeter, ",");
+                }
+                else
+                {
+                    throw new MicroassemblerParseException(token);
+                }
             }
-            while (!word.Equals("}"));
 
+            if (assertion.AssertedSignals.Count > 0)
+            {
+                List<ControlWordLabel> overlaps = assertion.AssertedSignals.Where(signal1 => assertion.AssertedSignals.Any(signal2 => (!signal2.Equals(signal1) && signal1.Key.Mask.OverlapsWith(signal2.Key.Mask)))).Select(kv => kv.Key).ToList();
+                if (overlaps.Count > 0)
+                {
+                    Console.WriteLine($"Warning: Assertion on line {startLine} contains overlapping signals: {String.Join(", ", overlaps.Select(o => o.Name))}");
+                }
+            }
             return assertion;
         }
 
@@ -134,8 +177,21 @@ namespace Microassembler
         {
             String name = GetWordToken();
             int bank = GetIntToken();
-            int msb = GetIntToken();
-            int lsb = (Enumerator.HasToken() && Enumerator.Current.TokenType == TokenType.Integer) ? GetIntToken() : msb;
+            if (!Enumerator.HasToken()) throw new MicroassemblerParseException(Enumerator.Current, "Number or Number:Number pair expected");
+            int msb, lsb;
+            if (Enumerator.Current.TokenType == TokenType.Pair)
+            {
+                Object[] arr = (Object[])Enumerator.Current.Value;
+                if (!(arr[0] is int) || !(arr[1] is int)) throw new MicroassemblerParseException("Number:Number pair expected");
+                msb = (int)arr[0];
+                lsb = (int)arr[1];
+                Enumerator.Advance();
+            }
+            else
+            {
+                msb = GetIntToken();
+                lsb = msb;
+            }
             BitMask mask = new BitMask(msb, lsb);
             Microprogram.ControlWordLabels.Add(name, new ControlWordLabel { Bank = bank, Name = name, Mask = mask });
             Console.WriteLine($"Added new control word label '{name}' on bank {bank} at {mask}");
@@ -250,8 +306,8 @@ namespace Microassembler
 
     public class MicroassemblerParseException : Exception //Thrown if the parse stage encounters an error
     {
-        public MicroassemblerParseException(Token token, String message) : base($"Error parsing microprogram: invalid token at or near '{token?.Value}' on line {token?.Line}") { }
-        public MicroassemblerParseException(Token token) : base($"Error parsing microprogram: invalid token at or near '{token?.Value}' on line {token?.Line}") { }
+        public MicroassemblerParseException(Token token, String message) : base($"Error parsing microprogram: invalid token at or near '{((token.Value.GetType().IsArray) ? (token.Value as Object[]).ToListString() : token.Value.ToString())}' on line {token?.Line}") { }
+        public MicroassemblerParseException(Token token) : base($"Error parsing microprogram: invalid token at or near '{((token.Value.GetType().IsArray) ? (token.Value as Object[]).ToListString() : token.Value.ToString())}' on line {token?.Line}") { }
         public MicroassemblerParseException(String message) : base(message) { }
     }
 

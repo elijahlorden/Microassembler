@@ -14,6 +14,8 @@ namespace Microassembler
         public int MicroprogramLength { get; set; }
         public BitMask BankSelectorMask { get; set; }
 
+        public ulong BanksCount { get => BankSelectorMask.MaxValue; }
+
         public String ProgramRomName { get; set; }
         public String EntrypointRomName { get; set; }
 
@@ -26,6 +28,11 @@ namespace Microassembler
 
     }
 
+    public interface ISymbolResolver
+    {
+        int Resolve();
+    }
+
     public class ControlWordLabel
     {
         public String Name { get; set; }
@@ -33,24 +40,33 @@ namespace Microassembler
         public int Bank { get; set; }
     }
 
-    public class SequenceLabel
+    public class SequenceLabel : ICloneable, ISymbolResolver
     {
-        public int PreExpansionAddress { get; set; }
-        public int PostExpansionAddress { get; set; }
-        public int AbsoluteAddress { get; set; }
+        public int LocalAddress { get; set; }
+        public int BaseAddress { get; set; }
+        public int AbsoluteAddress { get => BaseAddress + LocalAddress; }
+
+        public Object Clone() => new SequenceLabel { LocalAddress = LocalAddress, BaseAddress = BaseAddress };
+
+        public int Resolve() => AbsoluteAddress;
+
     }
 
-    public class Sequence : SymbolContainer
+    public class Sequence : SymbolContainer, ISymbolResolver
     {
         public List<SequenceStep> Steps { get; private set; }
         public List<String> Parameters { get; private set; }
-        public ulong Address { get; set; }
+        public int Address { get; set; }
+        public Boolean Unexpanded { get => Steps.Any(s => s.Type == SequenceStepType.MacroReference); }
+        public Boolean IsMacro { get; set; }
 
         public Sequence()
         {
             Steps = new List<SequenceStep>();
             Parameters = new List<string>();
         }
+
+        public int Resolve() => Address;
 
     }
 
@@ -60,34 +76,39 @@ namespace Microassembler
         MacroReference
     }
 
-    public class SequenceStep
+    public class SequenceStep : ICloneable
     {
+        public int Line { get; set; }
         public SequenceStepType Type { get; protected set; }
-        public virtual SequenceStep Duplicate() => new SequenceStep { Type = Type };
+        public virtual Object Clone() => new SequenceStep { Type = Type, Line = Line };
     }
 
     public class SequenceAssertion : SequenceStep
     {
-        public BitArray ControlWord { get; private set; }
-        public Dictionary<ControlWordLabel, Object> AssertedSignals { get; private set; }
+        public Dictionary<ControlWordLabel, Object> AssertedSignals { get; set; }
         public int Bank { get; private set; }
 
-        public SequenceAssertion(int ControlWordLength)
+        public SequenceAssertion()
         {
             Type = SequenceStepType.Assertion;
-            ControlWord = new BitArray(ControlWordLength);
             AssertedSignals = new Dictionary<ControlWordLabel, Object>();
         }
 
-        private SequenceAssertion() { }
+        public void AddAssertion(ControlWordLabel label, Object value, int line = -1)
+        {
+            if (AssertedSignals.Count > 0 && Bank != label.Bank) throw new MicroassemblerParseException(((line == -1) ? "Assertion attempts" : $"Assertion on line {line} attempts") +  $" to assert a signal '{label.Name}' on bank {label.Bank} while already on bank {Bank}");
+            Bank = label.Bank;
+            AssertedSignals.Add(label, value);
+        }
 
-        public override SequenceStep Duplicate() => new SequenceAssertion() { Type = Type, ControlWord = new BitArray(ControlWord), Bank = Bank, AssertedSignals = AssertedSignals.ToDictionary(e => e.Key, e => e.Value) };
+        public override Object Clone() => new SequenceAssertion() { Bank = Bank, Line = Line, AssertedSignals = AssertedSignals.ToDictionary(e => e.Key, e => e.Value) };
     }
 
     public class SequenceMacroReference : SequenceStep
     {
         public String Symbol { get; set; }
         public List<Object> Arguments { get; set; }
+        public String ParentReference { get; set; }
 
         public SequenceMacroReference()
         {
@@ -95,7 +116,7 @@ namespace Microassembler
             Arguments = new List<Object>();
         }
 
-        public override SequenceStep Duplicate() => new SequenceMacroReference() { Type = Type, Symbol = Symbol, Arguments = Arguments.ToList() };
+        public override Object Clone() => new SequenceMacroReference() { Symbol = Symbol, Line = Line, ParentReference = ParentReference, Arguments = Arguments.ToList() };
     }
 
 }

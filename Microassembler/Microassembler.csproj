@@ -46,6 +46,8 @@
   <ItemGroup>
     <Compile Include="BitBuffer.cs" />
     <Compile Include="Extensions.cs" />
+    <Compile Include="MicroprogramExpander.cs" />
+    <Compile Include="MicroprogramLinker.cs" />
     <Compile Include="MicroprogramParser.cs" />
     <Compile Include="MicroassemblerContainers.cs" />
     <Compile Include="Program.cs" />
