@@ -70,6 +70,21 @@ namespace Microassembler
                     }
                 }
             }
+            //Resolve empty step
+            SequenceAssertion emptyAssertion = microprogram.EmptyAssertion;
+            if (microprogram.EmptyAssertion == null) throw new MicroassemblerLinkException("The empty/default sequence step is not defined");
+            foreach (ControlWordLabel key in emptyAssertion.AssertedSignals.Keys.ToList())
+            {
+                Object value = emptyAssertion.AssertedSignals[key];
+                if (!(value is int))
+                {
+                    String symbol = value.ToString();
+                    Object resolvedSymbol = microprogram[symbol];
+                    if (resolvedSymbol == null) throw new MicroassemblerLinkException($"Symbol {symbol} referenced by assertion on line {emptyAssertion.Line} is not defined");
+                    if (resolvedSymbol is ISymbolResolver) resolvedSymbol = (resolvedSymbol as ISymbolResolver).Resolve();
+                    emptyAssertion.AssertedSignals[key] = resolvedSymbol;
+                }
+            }
         }
 
 
