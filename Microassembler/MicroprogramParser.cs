@@ -39,6 +39,12 @@ namespace Microassembler
                         case "macro":
                             if (!ProcessMacro()) return null;
                             break;
+                        case "empty":
+                            if (!ParseEmpty()) return null;
+                            break;
+                        case "entrypoints":
+                            if (!ParseEntrypoints()) return null;
+                            break;
                         default:
                             throw new MicroassemblerParseException(token, "Keyword expected");
                     }
@@ -48,7 +54,74 @@ namespace Microassembler
                     throw new MicroassemblerParseException(token, "Keyword expected");
                 }
             }
+            //Config sanity checks
+            if (Microprogram.MicroprogramLength <= 0) throw new MicroassemblerParseException($"The microprogram length must be greater than zero");
+            if (Microprogram.OpcodeWidth <= 0) throw new MicroassemblerParseException($"The opcode width must be greater than zero");
+            if (Microprogram.ControlWordWidth <= 0) throw new MicroassemblerParseException($"The control word width must be greater than zero");
+            if (Microprogram.BankSelectorMask.Length <= 0) throw new MicroassemblerParseException($"The bank selector width must be greater than zero");
+            if (Microprogram.BankSelectorMask.Length + 1 >= Microprogram.ControlWordWidth) throw new MicroassemblerParseException($"Control word width of {Microprogram.ControlWordWidth} is invalid, as the bank selector has a width of {Microprogram.BankSelectorMask.Length}");
+            //Check control word label lengths
+            foreach(ControlWordLabel cw in Microprogram.ControlWordLabels.Values)
+            {
+                if (cw.Mask.Length <= 0) throw new MicroassemblerParseException($"Control word label {cw.Name} must have a length that is geater than zero");
+                if (cw.Mask.Length + Microprogram.BankSelectorMask.Length > Microprogram.ControlWordWidth) throw new MicroassemblerParseException($"Control word label {cw.Name} exceeds the maximum control word width of {Microprogram.ControlWordWidth - Microprogram.BankSelectorMask.Length}");
+            }
             return Microprogram;
+        }
+
+        public Boolean ParseEntrypoints()
+        {
+            VerifySyntaxToken(TokenType.OpenBlock, "{");
+            while (true)
+            {
+                if (!Enumerator.HasToken()) throw new MicroassemblerParseException(Enumerator.Last, "Pair or } expected");
+                if (Enumerator.Current.TokenType == TokenType.CloseBlock)
+                {
+                    Enumerator.Advance();
+                    break;
+                }
+                if (Enumerator.Current.TokenType == TokenType.Pair)
+                {
+                    Object[] pair = Enumerator.Current.Value as Object[];
+                    Enumerator.Advance();
+                    if (!(pair[1] is String)) throw new MicroassemblerParseException(Enumerator.Last, "Entrypoint pair value must be a symbol");
+                    String symbol = (String)pair[1];
+                    if (pair[0] is String)
+                    {
+                        String key = pair[0] as String;
+                        switch (key.ToLower())
+                        {
+                            case "fetch":
+                                Microprogram.FetchEntrypoint = symbol;
+                                break;
+                            case "interrupt":
+                                Microprogram.InterruptEntrypoint = symbol;
+                                break;
+                            default: throw new MicroassemblerParseException(Enumerator.Last, $"Invalid entrypoint '{key}'");
+                        }
+
+                    }
+                    else if (pair[0] is int)
+                    {
+                        int entryIndex = (int)pair[0];
+                        if (Microprogram.InstructionEntrypoints.ContainsKey(entryIndex)) Console.WriteLine($"Warning: Duplicate entrypoint definition on line {Enumerator.Last.Line}, previous value overridden");
+                        Microprogram.InstructionEntrypoints[entryIndex] = symbol;
+                    }
+                    else throw new MicroassemblerParseException(Enumerator.Last, "Invalid Pair key");
+
+                    if (Enumerator.HasNext() && Enumerator.Next.TokenType == TokenType.Pair) VerifySyntaxToken(TokenType.ListDelimeter, ",");
+                    if (Enumerator.HasNext() && Enumerator.Next.TokenType == TokenType.CloseBlock) DiscardOptionalToken(TokenType.ListDelimeter, ",");
+                }
+                else throw new MicroassemblerParseException(Enumerator.Current, "Pair expected");
+            }
+            return true;
+        }
+
+        public Boolean ParseEmpty()
+        {
+            SequenceAssertion assertion = ParseSequenceAssertion();
+            Microprogram.EmptyAssertion = assertion;
+            return true;
         }
 
         public Boolean ProcessSequence() //Processes a normal sequence
@@ -232,8 +305,7 @@ namespace Microassembler
                         break;
                     case "bankmask":
                         arg = GetIntToken();
-                        arg2 = GetIntToken();
-                        Microprogram.BankSelectorMask = new BitMask(arg, arg2);
+                        Microprogram.BankSelectorMask = new BitMask(arg, 0);
                         Console.WriteLine($"Set control word bank select mask to {Microprogram.BankSelectorMask}");
                         break;
                     default:

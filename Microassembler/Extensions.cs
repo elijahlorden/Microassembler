@@ -19,5 +19,11 @@ namespace Microassembler
             }
         }
 
+        public static void EachIndex<T>(this IEnumerable<T> ie, Action<T, int> a)
+        {
+            int i = 0;
+            foreach (T e in ie) a(e, i++);
+        }
+
     }
 }

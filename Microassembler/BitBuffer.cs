@@ -71,6 +71,12 @@ namespace Microassembler
             set => this[mask.Msb, mask.Lsb] = value;
         }
 
+        public ulong this[BitMask mask, int offset]
+        {
+            get => this[mask.Msb + offset, mask.Lsb + offset];
+            set => this[mask.Msb + offset, mask.Lsb + offset] = value;
+        }
+
         public BitArray(int Length)
         {
             Buffer = new bool[Length];

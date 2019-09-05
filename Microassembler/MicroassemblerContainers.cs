@@ -20,10 +20,17 @@ namespace Microassembler
         public String EntrypointRomName { get; set; }
 
         public Dictionary<String, ControlWordLabel> ControlWordLabels { get; private set; }
+        public Dictionary<int, String> InstructionEntrypoints { get; private set; }
+
+        public String FetchEntrypoint { get; set; }
+        public String InterruptEntrypoint { get; set; }
+
+        public SequenceAssertion EmptyAssertion { get; set; }
 
         public Microprogram()
         {
             ControlWordLabels = new Dictionary<string, ControlWordLabel>();
+            InstructionEntrypoints = new Dictionary<int, string>();
         }
 
     }

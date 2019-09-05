@@ -9,13 +9,20 @@ namespace Microassembler
     class MicroprogramLinker
     {
 
-        public List<Sequence> PlaceMicroprogram(Microprogram microprogram) //Assign each sequence an absolute starting address and return a list of all sequences in order
+        public List<Sequence> PlaceMicroprogram(Microprogram microprogram) //Assign each sequence an absolute starting address and return a list of all sequences in order.  Assign the fetch sequence to address 0
         {
             int currAddress = 0;
             List<Sequence> placedSequences = new List<Sequence>();
+            Sequence fetchSequence = microprogram[microprogram.FetchEntrypoint] as Sequence;
+            if (fetchSequence == null) throw new MicroassemblerLinkException($"Fetch sequence '{microprogram.FetchEntrypoint}' was not found");
+            if (fetchSequence.IsMacro) throw new MicroassemblerLinkException($"Fetch sequence '{microprogram.FetchEntrypoint}' is defined as a Macro");
+            fetchSequence.Address = 0;
+            RecurseAssignBaseAddress(fetchSequence, 0);
+            currAddress += fetchSequence.Steps.Count;
+            placedSequences.Add(fetchSequence);
             foreach (KeyValuePair<String, Object> kv in microprogram.Symbols)
             {
-                if (kv.Value is Sequence)
+                if (kv.Value is Sequence && kv.Value != fetchSequence)
                 {
                     Sequence sequence = kv.Value as Sequence;
                     if (sequence.IsMacro) continue; //Do NOT place macros
@@ -73,9 +80,9 @@ namespace Microassembler
 
     }
 
-    public class MicroassemblerLinkException : Exception //Thrown if the expansion stage encounters an error
+    public class MicroassemblerLinkException : Exception //Thrown if the link stage encounters an error
     {
-        public MicroassemblerLinkException(String message) : base($"Error expanding microprogram: {message}") { }
+        public MicroassemblerLinkException(String message) : base($"Error linking microprogram: {message}") { }
     }
 
 }

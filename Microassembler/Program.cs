@@ -22,6 +22,11 @@ namespace Microassembler
             List<Sequence> placedSequences = linker.PlaceMicroprogram(microprogram);
             linker.ResolveSymbols(microprogram, placedSequences);
 
+
+
+
+
+
             Console.WriteLine();
         }
     }

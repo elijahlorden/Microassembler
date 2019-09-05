@@ -1,7 +1,7 @@
 ﻿
 config {
 	ControlWordWidth 24 #Width of control word
-	BankMask 0 1 #Portion of the control word reserved for the bank selector
+	BankMask 1 #Portion of the control word reserved for the bank selector (starts at lsb)
 	MicroprogramLength 4096 #Maximum number of microinstructions
 	OpWidth 8 #Width of opcode
 }
@@ -28,11 +28,20 @@ const branch_overflow				7
 
 
 #bank 0
-control mi_action					0 4:2 	#define a control called 'mi_action' on bank 0 at 4:2
-control mi_branchtype				0 7:5
-control mi_branchtype_invert		0 8 	#define a control called 'mi_branchtype_invert' on bank 0 at 8
-control mi_jumpaddr					0 23:12
+control mi_action					1 2:0 	#define a control called 'mi_action' on bank 0 at 4:2
+control mi_branchtype				1 5:3
+control mi_branchtype_invert		1 6 	#define a control called 'mi_branchtype_invert' on bank 0 at 8
+control mi_jumpaddr					1 21:10
 
+entrypoints { #Define fetch cycle, instruction and interrupt entrypoints
+	fetch: TestSequence,
+	interrupt: sequence3,
+	0: sequence,
+}
+
+empty { #Empty assertion used to fill empty space
+	mi_action: mi_action_reset
+}
 
 sequence TestSequence {
 	::label1:: #set a label on the next microinstruction
