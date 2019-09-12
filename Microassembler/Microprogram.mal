@@ -1,6 +1,6 @@
 ﻿
 config {
-	ControlWordWidth 24 #Width of control word
+	ControlWordWidth 32 #Width of control word
 	BankMask 1 #Portion of the control word reserved for the bank selector (starts at lsb)
 	MicroprogramLength 4096 #Maximum number of microinstructions
 	OpWidth 8 #Width of opcode
@@ -28,62 +28,63 @@ const branch_overflow				7
 
 
 #bank 0
-control mi_action					0 2:0 	#define a control called 'mi_action' on bank 0 at 4:2
-control mi_branchtype				0 5:3
-control mi_branchtype_invert		0 6 	#define a control called 'mi_branchtype_invert' on bank 0 at 8
-control mi_jumpaddr					0 21:10
+control mi_action					0 2:0	#Alters behavior of the micromachine
+control mi_branchtype				0 5:3	#Micromachine branch type
+control mi_branchtype_invert		0 6		#Inverts the meaning of the micromachine branch type (ex. branch if zero -> branch if not zero)
+control mi_jumpaddr					0 29:18	#Micromachine branch address
+
+#bank 1
+control rt_src						1 4:0	#Source address for register transfer
+control rt_dst						1 9:5	#Destination address for register transfer
+control register_transfer			1 10	#Perform register transfer
+control aluop						1 15:11	#ALU operation to perform
+control stackop						1 18:16 #Stack operation to perform
+#!CANNOT BE USED WITH PREVIOUS BANK 1 OPERATIONS!
+control rload						1 29	#Loads half of a register with an inline value
+control rload_dst					1 4:0	#Destination of register load
+control rload_val					1 28:5	#Value of register load
 
 entrypoints { #Define fetch cycle, instruction and interrupt entrypoints
-	fetch: TestSequence,
-	interrupt: sequence3,
-	0: sequence,
+	fetch: FetchSequence,
+	interrupt: InterruptSequence,
+	0: Test, #Test.  Since the fetch sequence is left empty, the Test sequence should be placed at address zero and executed at startup
 }
 
-empty { #Empty assertion used to fill empty space
+empty { #Assertion used to fill empty space, in this case executing empty space results in a machine reset
 	mi_action: mi_action_reset
 }
 
-sequence TestSequence {
-	::label1:: #set a label on the next microinstruction
+sequence FetchSequence {
+	
+}
+
+sequence InterruptSequence {
+	
+}
+
+sequence Test {
+	Load_48(3, 0x0F0F0F, 0xF0F0F0)
+	Transfer(3, 1)
+	Transfer(1, 2)
+}
+
+macro Load_24(address, value) {
 	assert {
-		mi_action: 1, #set a control signal to a literal number
-	}
-	assert {
-		mi_action: mi_action_branch, #set a control signal to a constant
-		mi_branchtype: branch_zero,
-		mi_jumpaddr: sequence2, #set a control signal to the address of another sequence
-	}
-	::label2::
-	testmacro(branch_zero, label1) #Reference a macro (expanded in pre-link stage)
-	testmacro(label1, branch_zero)
-	::label3::
-	assert {
-		mi_jumpaddr: _testmacro_0.mlabel1, #set a control signal to the address of a label
+		rload: 1,
+		rload_dst: address,
+		rload_val: value
 	}
 }
 
-sequence sequence2 {
-	::label1::
+macro Load_48(address, upper, lower) {
+	Load_24(address, lower)
+	Load_24(0, upper)
+}
+
+macro Transfer(src, dst) {
 	assert {
-		mi_action: 5
+		register_transfer: 1,
+		rt_src: src,
+		rt_dst: dst
 	}
-	testmacro(0, 0)
-}
-
-sequence sequence3 {
-	::label1::
-	assert {
-		mi_action: 5
-	}
-}
-
-macro testmacro(param1, param2) { #Macros can accept compile-time parameters
-	::mlabel1::
-	assert { mi_action: param2, mi_branchtype: param1, mi_jumpaddr: mlabel1 }
-	testmacro2(param1, param2)
-	assert{}
-}
-
-macro testmacro2(param2, param3) {
-	assert { mi_action: 3 }
 }

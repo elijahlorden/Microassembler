@@ -21,10 +21,7 @@ namespace Microassembler
             MicroprogramLinker linker = new MicroprogramLinker();
             List<Sequence> placedSequences = linker.PlaceMicroprogram(microprogram);
             linker.ResolveSymbols(microprogram, placedSequences);
-
-            Console.WriteLine(MicroprogramFileWriter.GetMicroprogramString(microprogram, placedSequences));
-
-
+            MicroprogramFileWriter.WriteMicroprogram(microprogram, placedSequences, System.IO.Directory.GetCurrentDirectory(), true);
 
 
             Console.WriteLine();

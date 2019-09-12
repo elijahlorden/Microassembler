@@ -16,9 +16,6 @@ namespace Microassembler
 
         public ulong BanksCount { get => BankSelectorMask.MaxValue; }
 
-        public String ProgramRomName { get; set; }
-        public String EntrypointRomName { get; set; }
-
         public Dictionary<String, ControlWordLabel> ControlWordLabels { get; private set; }
         public Dictionary<int, String> InstructionEntrypoints { get; private set; }
 

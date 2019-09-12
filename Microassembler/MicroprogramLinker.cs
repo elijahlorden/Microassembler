@@ -32,6 +32,7 @@ namespace Microassembler
                     placedSequences.Add(sequence);
                 }
             }
+            if (currAddress > microprogram.MicroprogramLength - 1) throw new MicroassemblerLinkException($"Placed microprogram is of length {currAddress + 1} which exceeds the maximum length of {microprogram.MicroprogramLength}");
             return placedSequences;
         }
 
