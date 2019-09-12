@@ -35,7 +35,7 @@ control mi_jumpaddr					0 29:18	#Micromachine branch address
 
 #bank 1
 control rt_src						1 4:0	#Source address for register transfer
-control rt_dst						1 9:5	#Destination address for register transfer
+control rt_dst						1 13:5	#Destination address for register transfer
 control register_transfer			1 10	#Perform register transfer
 control aluop						1 15:11	#ALU operation to perform
 control stackop						1 18:16 #Stack operation to perform
@@ -47,7 +47,7 @@ control rload_val					1 28:5	#Value of register load
 entrypoints { #Define fetch cycle, instruction and interrupt entrypoints
 	fetch: FetchSequence,
 	interrupt: InterruptSequence,
-	0: Test, #Test.  Since the fetch sequence is left empty, the Test sequence should be placed at address zero and executed at startup
+	0: Test #Test.  Since the fetch sequence is left empty, the Test sequence should be placed at address zero and executed at startup
 }
 
 empty { #Assertion used to fill empty space, in this case executing empty space results in a machine reset
@@ -63,7 +63,7 @@ sequence InterruptSequence {
 }
 
 sequence Test {
-	Load_48(3, 0x0F0F0F, 0xF0F0F0)
+	Load_48(3, 0xF00000F00000)
 	Transfer(3, 1)
 	Transfer(1, 2)
 }
@@ -76,9 +76,9 @@ macro Load_24(address, value) {
 	}
 }
 
-macro Load_48(address, upper, lower) {
-	Load_24(address, lower)
-	Load_24(0, upper)
+macro Load_48(address, value) {
+	Load_24(address, value[23:0])
+	Load_24(0, value[47:24])
 }
 
 macro Transfer(src, dst) {

@@ -59,13 +59,34 @@ namespace Microassembler
                         foreach(ControlWordLabel key in assertion.AssertedSignals.Keys.ToList())
                         {
                             Object value = assertion.AssertedSignals[key];
-                            if (!(value is int))
+                            if (!(value is long))
                             {
                                 String symbol = value.ToString();
-                                Object resolvedSymbol = (sequence[symbol] != null) ? sequence[symbol] : microprogram[symbol];
-                                if (resolvedSymbol == null) throw new MicroassemblerLinkException($"Symbol {symbol} referenced by assertion on line {assertion.Line} is not defined");
-                                if (resolvedSymbol is ISymbolResolver) resolvedSymbol = (resolvedSymbol as ISymbolResolver).Resolve();
-                                assertion.AssertedSignals[key] = resolvedSymbol;
+                                SymbolSelector sel = SymbolSelector.TryParse(symbol);
+                                if (sel != null)
+                                {
+                                    if (long.TryParse(sel.Symbol, out long intValue))
+                                    {
+                                        assertion.AssertedSignals[key] = (intValue & sel.Selector.ToLongMask()) >> sel.Selector.LowerBound;
+                                    }
+                                    else
+                                    {
+                                        symbol = sel.Symbol;
+                                        Object resolvedSymbol = (sequence[symbol] != null) ? sequence[symbol] : microprogram[symbol];
+                                        if (resolvedSymbol == null) throw new MicroassemblerLinkException($"Symbol {symbol} referenced by assertion on line {assertion.Line} is not defined");
+                                        if (resolvedSymbol is ISymbolResolver) resolvedSymbol = (resolvedSymbol as ISymbolResolver).Resolve();
+                                        if (!(resolvedSymbol is long)) throw new MicroassemblerLinkException($"Symbol {symbol} resolved to {resolvedSymbol}, all symbols should resolve to a number");
+                                        assertion.AssertedSignals[key] = ((long)resolvedSymbol & sel.Selector.ToLongMask()) >> sel.Selector.LowerBound;
+                                    }
+                                }
+                                else
+                                {
+                                    Object resolvedSymbol = (sequence[symbol] != null) ? sequence[symbol] : microprogram[symbol];
+                                    if (resolvedSymbol == null) throw new MicroassemblerLinkException($"Symbol {symbol} referenced by assertion on line {assertion.Line} is not defined");
+                                    if (resolvedSymbol is ISymbolResolver) resolvedSymbol = (resolvedSymbol as ISymbolResolver).Resolve();
+                                    if (!(resolvedSymbol is long)) throw new MicroassemblerLinkException($"Symbol {symbol} resolved to {resolvedSymbol}, all symbols should resolve to a number");
+                                    assertion.AssertedSignals[key] = resolvedSymbol;
+                                }
                             }
                         }
                     }
@@ -77,7 +98,7 @@ namespace Microassembler
             foreach (ControlWordLabel key in emptyAssertion.AssertedSignals.Keys.ToList())
             {
                 Object value = emptyAssertion.AssertedSignals[key];
-                if (!(value is int))
+                if (!(value is long))
                 {
                     String symbol = value.ToString();
                     Object resolvedSymbol = microprogram[symbol];

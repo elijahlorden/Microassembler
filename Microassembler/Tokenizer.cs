@@ -159,7 +159,7 @@ namespace Microassembler
                     tokens.Add(new Token { Line = currentLine, TokenType = TokenType.CloseBlock, Value = "}" });
                     continue;
                 }
-                else if (currToken.EndsWith(":") && !currToken.StartsWith(":"))
+                else if (currToken.EndsWith(":") && !currToken.StartsWith(":") && !currToken.Contains("["))
                 {
                     inPair = true;
                     tokenStartLine = currentLine;
@@ -204,18 +204,33 @@ namespace Microassembler
 
         public static Object AutoCastInt(String token, int line, out TokenType type) //Try to cast a string to an integer in various formats.  If not successful, returns the original string
         {
-            int intToken = 0;
-            if (token.StartsWith("0x"))
+            long intToken = 0;
+            SymbolSelector sel;
+            if ((sel = SymbolSelector.TryParse(token)) != null)
+            {
+                Object selCast = AutoCastInt(sel.Symbol, line, out TokenType selType); //Probably will never cause infinite recursion
+                if (selType == TokenType.Integer)
+                {
+                    type = TokenType.Integer;
+                    return ((long)selCast & sel.Selector.ToLongMask()) >> sel.Selector.LowerBound;
+                }
+                else
+                {
+                    type = TokenType.Word;
+                    return token;
+                }
+            }
+            else if (token.StartsWith("0x"))
             {
                 token = token.Substring(2, token.Length - 2);
-                if (!int.TryParse(token, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out intToken))
+                if (!long.TryParse(token, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out intToken))
                 {
                     throw new TokenizerException("Malformed hexadecimal number at line " + line);
                 }
                 type = TokenType.Integer;
                 return intToken;
             }
-            else if (int.TryParse(token, out intToken))
+            else if (long.TryParse(token, out intToken))
             {
                 type = TokenType.Integer;
                 return intToken;

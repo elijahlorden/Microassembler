@@ -107,6 +107,9 @@ namespace Microassembler
         public int Msb { get; set; }
         public int Lsb { get; set; }
 
+        public int LowerBound { get => Math.Min(Msb, Lsb); }
+        public int UpperBound { get => Math.Max(Msb, Lsb); }
+
         public int Length
         {
             get
@@ -129,14 +132,21 @@ namespace Microassembler
             this.Lsb = Lsb;
         }
 
+        public BitMask(int bit) : this(bit, bit) { }
+
         public Boolean OverlapsWith(BitMask other)
         {
-            int selfUpper = Math.Max(Msb, Lsb);
-            int selfLower = Math.Min(Msb, Lsb);
-            int otherUpper = Math.Max(other.Msb, other.Lsb);
-            int otherLower = Math.Min(other.Msb, other.Lsb);
-            if ((selfUpper > otherUpper && selfLower > otherUpper) || (selfUpper < otherLower && selfLower < otherLower)) return false;
+            if ((UpperBound > other.UpperBound && LowerBound > other.UpperBound) || (UpperBound < other.LowerBound && LowerBound < other.LowerBound)) return false;
             return true;
+        }
+
+        public long ToLongMask()
+        {
+            long mask = 0;
+            if (UpperBound > 63) throw new IndexOutOfRangeException("Mask cannot be converted to a long, too large");
+            if (UpperBound == LowerBound) return (long)Math.Pow(2, UpperBound);
+            for (int i = LowerBound; i <= UpperBound; i++) mask |= (long)Math.Pow(2, i);
+            return mask;
         }
 
         public override string ToString()

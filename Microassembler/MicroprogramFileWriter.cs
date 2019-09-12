@@ -105,14 +105,14 @@ namespace Microassembler
         {
             if (step.Type == SequenceStepType.MacroReference) throw new MicroassemblerWriteException($"Unexpanded macro found on line {step.Line}");
             SequenceAssertion assertion = step as SequenceAssertion;
-            BitArray array = new BitArray(microprogram.ControlWordWidth);
+            BitArray array = new BitArray((int)microprogram.ControlWordWidth);
             array[microprogram.BankSelectorMask] = (ulong)assertion.Bank;
             int bankOffset = microprogram.BankSelectorMask.Length;
             foreach(KeyValuePair<ControlWordLabel, Object> signal in assertion.AssertedSignals)
             {
-                if (!(signal.Value is int)) throw new MicroassemblerWriteException($"Invalid/unresolved symbol {signal.Value} in assertion on line {assertion.Line}");
-                int value = (int)signal.Value;
-                if (value > (int)signal.Key.Mask.MaxValue) Console.WriteLine($"Warning: Asserted signal {signal.Key.Name} on line {assertion.Line} has a maximum value of {signal.Key.Mask.MaxValue} (actual assertion of {value} will be truncated)");
+                if (!(signal.Value is long)) throw new MicroassemblerWriteException($"Invalid/unresolved symbol {signal.Value} in assertion on line {assertion.Line}");
+                long value = (long)signal.Value;
+                if (value > (long)signal.Key.Mask.MaxValue) Console.WriteLine($"Warning: Asserted signal {signal.Key.Name} on line {assertion.Line} has a maximum value of {signal.Key.Mask.MaxValue} (actual assertion of {value} will be truncated)");
                 array[signal.Key.Mask, bankOffset] = (ulong)value;
             }
             return array;

@@ -53,6 +53,7 @@
     <Compile Include="MicroassemblerContainers.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Regx.cs" />
     <Compile Include="SymbolContainer.cs" />
     <Compile Include="Tokenizer.cs" />
   </ItemGroup>

@@ -92,7 +92,16 @@ namespace Microassembler
         {
             if (!(original is String)) return original; //No operation required if original is a literal value
             String value = original as String;
-            return (macro.Parameters.Contains(value)) ? macroReference.Arguments[macro.Parameters.IndexOf(value)]
+            SymbolSelector sel = SymbolSelector.TryParse(value);
+            if (sel != null)
+            {
+                value = sel.Symbol;
+                Object newValue = (macro.Parameters.Contains(value)) ? macroReference.Arguments[macro.Parameters.IndexOf(value)]
+                   : (macro.Symbols.ContainsKey(value)) ? expansionSymbol + "." + value
+                   : value;
+                return newValue.ToString() + $"[{sel.Selector.ToString()}]";
+            }
+            else return (macro.Parameters.Contains(value)) ? macroReference.Arguments[macro.Parameters.IndexOf(value)]
                    : (macro.Symbols.ContainsKey(value)) ? expansionSymbol + "." + value
                    : value;
         }

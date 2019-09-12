@@ -101,9 +101,9 @@ namespace Microassembler
                         }
 
                     }
-                    else if (pair[0] is int)
+                    else if (pair[0] is long)
                     {
-                        int entryIndex = (int)pair[0];
+                        int entryIndex = Convert.ToInt32(pair[0]);
                         if (Microprogram.InstructionEntrypoints.ContainsKey(entryIndex)) Console.WriteLine($"Warning: Duplicate entrypoint definition on line {Enumerator.Last.Line}, previous value overridden");
                         Microprogram.InstructionEntrypoints[entryIndex] = symbol;
                     }
@@ -240,7 +240,7 @@ namespace Microassembler
         public bool ProcessConstant() // Processes a constant and add it to the top-level symbol table
         {
             String key = GetWordToken();
-            int value = GetIntToken();
+            long value = GetIntToken();
             CheckSymbolWarning(key, Enumerator.Last.Line);
             Microprogram.Symbols[key] = value;
             return true;
@@ -249,24 +249,24 @@ namespace Microassembler
         public bool ProcessControlWordLabel() //Processes a control word label and adds it to the list of control word labels
         {
             String name = GetWordToken();
-            int bank = GetIntToken();
+            long bank = GetIntToken();
             if (!Enumerator.HasToken()) throw new MicroassemblerParseException(Enumerator.Current, "Number or Number:Number pair expected");
             int msb, lsb;
             if (Enumerator.Current.TokenType == TokenType.Pair)
             {
                 Object[] arr = (Object[])Enumerator.Current.Value;
-                if (!(arr[0] is int) || !(arr[1] is int)) throw new MicroassemblerParseException("Number:Number pair expected");
-                msb = (int)arr[0];
-                lsb = (int)arr[1];
+                if (!(arr[0] is long) || !(arr[1] is long)) throw new MicroassemblerParseException("Number:Number pair expected");
+                msb = Convert.ToInt32(arr[0]);
+                lsb = Convert.ToInt32(arr[1]);
                 Enumerator.Advance();
             }
             else
             {
-                msb = GetIntToken();
+                msb = (int)GetIntToken();
                 lsb = msb;
             }
             BitMask mask = new BitMask(msb, lsb);
-            Microprogram.ControlWordLabels.Add(name, new ControlWordLabel { Bank = bank, Name = name, Mask = mask });
+            Microprogram.ControlWordLabels.Add(name, new ControlWordLabel { Bank = Convert.ToInt32(bank), Name = name, Mask = mask });
             Console.WriteLine($"Added new control word label '{name}' on bank {bank} at {mask}");
             return true;
         }
@@ -284,7 +284,7 @@ namespace Microassembler
                     throw new MicroassemblerParseException(token, "Config name expected");
                 }
                 String configName = (String)token.Value;
-                int arg;
+                long arg;
                 int arg2;
                 switch (configName.ToLower())
                 {
@@ -305,7 +305,7 @@ namespace Microassembler
                         break;
                     case "bankmask":
                         arg = GetIntToken();
-                        Microprogram.BankSelectorMask = new BitMask(arg, 0);
+                        Microprogram.BankSelectorMask = new BitMask((int)arg, 0);
                         Console.WriteLine($"Set control word bank select mask to {Microprogram.BankSelectorMask}");
                         break;
                     default:
@@ -331,11 +331,11 @@ namespace Microassembler
             }
         }
 
-        public int GetIntToken()
+        public long GetIntToken()
         {
             if (!Enumerator.HasToken()) throw new MicroassemblerParseException(Enumerator.Last, "Integer expected");
             if (Enumerator.Current.TokenType != TokenType.Integer) throw new MicroassemblerParseException(Enumerator.Current, "Integer expected");
-            int retVal = (int)Enumerator.Current.Value;
+            long retVal = (long)Enumerator.Current.Value;
             Enumerator.Advance();
             return retVal;
         }

@@ -11,6 +11,9 @@ namespace Microassembler
     {
         static void Main(string[] args)
         {
+
+            Console.WriteLine(new BitMask(62,0).ToLongMask());
+
             StreamReader reader = new StreamReader("Microprogram.mal");
             String file = reader.ReadToEnd();
             reader.Dispose();
@@ -23,6 +26,7 @@ namespace Microassembler
             linker.ResolveSymbols(microprogram, placedSequences);
             MicroprogramFileWriter.WriteMicroprogram(microprogram, placedSequences, System.IO.Directory.GetCurrentDirectory(), true);
 
+            
 
             Console.WriteLine();
         }

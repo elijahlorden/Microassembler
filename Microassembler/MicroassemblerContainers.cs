@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Microassembler
@@ -9,9 +10,9 @@ namespace Microassembler
 
     public class Microprogram : SymbolContainer
     {
-        public int ControlWordWidth { get; set; }
-        public int OpcodeWidth { get; set; }
-        public int MicroprogramLength { get; set; }
+        public long ControlWordWidth { get; set; }
+        public long OpcodeWidth { get; set; }
+        public long MicroprogramLength { get; set; }
         public BitMask BankSelectorMask { get; set; }
 
         public ulong BanksCount { get => BankSelectorMask.MaxValue; }
@@ -121,6 +122,36 @@ namespace Microassembler
         }
 
         public override Object Clone() => new SequenceMacroReference() { Symbol = Symbol, Line = Line, ParentReference = ParentReference, Arguments = Arguments.ToList() };
+    }
+
+    public class SymbolSelector
+    {
+        public BitMask Selector { get; set; }
+        public String Symbol { get; set; }
+
+        public static Regex parseRegx = new Regex(@"([^\[\]]+)\[(?:(\d+):(\d+)|(\d+))\]", RegexOptions.Compiled);
+
+        public static SymbolSelector TryParse(String value)
+        {
+            Match match = parseRegx.Match(value);
+            if (match.Success)
+            {
+                SymbolSelector selector = new SymbolSelector();
+                selector.Symbol = match.Groups[1].Value;
+                if (match.Groups[4].Success) //If selector is a single bit
+                {
+                    selector.Selector = new BitMask(int.Parse(match.Groups[4].Value));
+                }
+                else
+                {
+                    selector.Selector = new BitMask(int.Parse(match.Groups[2].Value), int.Parse(match.Groups[3].Value));
+                }
+                return selector;
+            }
+            return null;
+        }
+
+
     }
 
 }
