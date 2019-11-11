@@ -107,7 +107,7 @@ namespace Microassembler
                         if (Microprogram.InstructionEntrypoints.ContainsKey(entryIndex)) Console.WriteLine($"Warning: Duplicate entrypoint definition on line {Enumerator.Last.Line}, previous value overridden");
                         Microprogram.InstructionEntrypoints[entryIndex] = symbol;
                     }
-                    else throw new MicroassemblerParseException(Enumerator.Last, "Invalid Pair key");
+                    else throw new MicroassemblerParseException(Enumerator.Last, "Invalid Entrypoint");
 
                     if (Enumerator.HasNext() && Enumerator.Next.TokenType == TokenType.Pair) VerifySyntaxToken(TokenType.ListDelimeter, ",");
                     if (Enumerator.HasNext() && Enumerator.Next.TokenType == TokenType.CloseBlock) DiscardOptionalToken(TokenType.ListDelimeter, ",");

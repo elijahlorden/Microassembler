@@ -6,6 +6,45 @@ config {
 	OpWidth 8 #Width of opcode
 }
 
+#alu operations
+const alu_add						1
+const alu_sub						2
+const alu_neg						3
+const alu_inc						4
+const alu_dec						5
+const alu_mul						6
+const alu_div						7
+const alu_rem						8
+const alu_sqrt						9
+const alu_and						10
+const alu_or						11
+const alu_nand						12
+const alu_nor						13
+const alu_not						14
+const alu_xor						15
+const alu_lsh						16
+const alu_rsh						17
+const alu_alsh						18
+const alu_arsh						19
+const alu_cmp						20
+
+#register addresses
+const r_zero						0
+const r_buf0						1
+const r_buf1						2
+const r_buf2						3
+const r_buf3						4
+const r_buf4						5
+const r_buf5						6
+const r_mar							7
+const r_mdr							8
+const r_ip							9
+const r_dsp							10
+const r_rsp							11
+const r_ds							12
+const r_rs							13
+const r_ir							14
+
 #micromachine actions
 const mi_action_default				0
 const mi_action_next				1
@@ -26,6 +65,9 @@ const branch_less_than_or_zero		5
 const branch_carry					6
 const branch_overflow				7
 
+const register_transfer				1
+const bus_transfer_read				2
+const bus_transfer_write			3
 
 #bank 0
 control mi_action					0 2:0	#Alters behavior of the micromachine
@@ -34,11 +76,12 @@ control mi_branchtype_invert		0 6		#Inverts the meaning of the micromachine bran
 control mi_jumpaddr					0 29:18	#Micromachine branch address
 
 #bank 1
-control rt_src						1 4:0	#Source address for register transfer
-control rt_dst						1 13:5	#Destination address for register transfer
-control register_transfer			1 10	#Perform register transfer
-control aluop						1 15:11	#ALU operation to perform
-control stackop						1 18:16 #Stack operation to perform
+control rt_src1						1 4:0	#Source 1 address for register transfer
+control rt_src2						1 9:5	#Source 2 address for register transfer
+control rt_dest						1 14:10	#Destination address for register transfer
+control aluop						1 19:15	#ALU operation to perform
+control stackop						1 22:20 #Stack operation to perform
+control transfer					1 24:23 #Transfer operation to perform
 #!CANNOT BE USED WITH PREVIOUS BANK 1 OPERATIONS!
 control rload						1 29	#Loads half of a register with an inline value
 control rload_dst					1 4:0	#Destination of register load
@@ -50,8 +93,8 @@ entrypoints { #Define fetch cycle, instruction and interrupt entrypoints
 	0: Test #Test.  Since the fetch sequence is left empty, the Test sequence should be placed at address zero and executed at startup
 }
 
-empty { #Assertion used to fill empty space, in this case executing empty space results in a machine reset
-	mi_action: mi_action_reset
+empty { #Assertion used to fill empty space, in this case executing empty space results in a machine halt
+	mi_action: mi_action_halt
 }
 
 sequence FetchSequence {
@@ -62,10 +105,33 @@ sequence InterruptSequence {
 	
 }
 
+/*sequence Test {
+	Load_24(r_buf0, 0)
+	Load_24(r_buf1, 1)
+	Load_24(r_buf3, 144)
+	::loop::
+	Add(r_buf0, r_buf1, r_buf2)
+	Transfer(r_buf1, r_buf0)
+	Transfer(r_buf2, r_buf1)
+	Cmp(r_buf0, r_buf3) #compare buffer0 with 144
+	Branch(branch_less_than_or_zero, loop) #Continue and execute halt instruction if result > 144 (last value should be 233)
+	assert{ mi_action: mi_action_halt }
+}*/
+
 sequence Test {
-	Load_48(3, 0xF00000F00000)
-	Transfer(3, 1)
-	Transfer(1, 2)
+	Load_24(r_buf0, 0)
+	Bus_Read(r_buf0, r_buf1)
+	Load_24(r_buf0, 1)
+	Bus_Write(r_buf0, r_buf1)
+	Bus_Read(r_buf0, r_buf2)
+}
+
+macro Branch(condition, address) {
+	assert {
+		mi_action: mi_action_branch,
+		mi_branchtype: condition,
+		mi_jumpaddr: address
+	}
 }
 
 macro Load_24(address, value) {
@@ -83,8 +149,44 @@ macro Load_48(address, value) {
 
 macro Transfer(src, dst) {
 	assert {
-		register_transfer: 1,
-		rt_src: src,
-		rt_dst: dst
+		transfer: register_transfer,
+		rt_src1: src,
+		rt_dest: dst
 	}
+}
+
+macro Bus_Read(addrSrc, dst) {
+	assert {
+		transfer: bus_transfer_read,
+		rt_src1: addrSrc,
+		rt_dest: dst
+	}
+}
+
+macro Bus_Write(addrSrc, dataSrc) {
+	assert {
+		transfer: bus_transfer_write,
+		rt_src1: addrSrc,
+		rt_src2: dataSrc
+	}
+}
+
+macro Alu(srcA, srcB, dest, op) {
+	assert {
+		aluop: op,
+		rt_src1: srcA,
+		rt_src2: srcB,
+		rt_dest: dest
+	}
+}
+
+macro Add(srcA, srcB, dest) { Alu(srcA, srcB, dest, alu_add) }
+
+macro Div(srcA, srcB, dest) { Alu(srcA, srcB, dest, alu_div) }
+macro Rem(srcA, srcB, dest) { Alu(srcA, srcB, dest, alu_rem) }
+
+macro Cmp(srcA, srcB)		{ Alu(srcA, srcB, 0, alu_cmp) }
+
+macro Control_Write_BusLen(src) {
+	
 }

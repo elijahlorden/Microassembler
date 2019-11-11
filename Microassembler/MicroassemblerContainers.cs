@@ -35,7 +35,7 @@ namespace Microassembler
 
     public interface ISymbolResolver
     {
-        int Resolve();
+        long Resolve();
     }
 
     public class ControlWordLabel
@@ -53,7 +53,7 @@ namespace Microassembler
 
         public Object Clone() => new SequenceLabel { LocalAddress = LocalAddress, BaseAddress = BaseAddress };
 
-        public int Resolve() => AbsoluteAddress;
+        public long Resolve() => AbsoluteAddress;
 
     }
 
@@ -71,7 +71,7 @@ namespace Microassembler
             Parameters = new List<string>();
         }
 
-        public int Resolve() => Address;
+        public long Resolve() => Address;
 
     }
 
